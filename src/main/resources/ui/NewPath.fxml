@@ -1,0 +1,67 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<?import javafx.scene.control.*?>
+<?import javafx.scene.layout.*?>
+
+<AnchorPane prefHeight="720" prefWidth="1280.0" style="-fx-background-color: White;" xmlns="http://javafx.com/javafx" xmlns:fx="http://javafx.com/fxml" fx:controller="controller.NewPath">
+    <children>
+        <AnchorPane prefHeight="720.0" prefWidth="1280.0">
+            <children>
+                <Pane  prefHeight="720.0" prefWidth="1280.0" style="-fx-background-color: #d9ecf2;">
+               <children>
+                   <VBox layoutY="50" layoutX="10" prefHeight="200.0" prefWidth="200.0">
+                       <children>
+                           <Label text="Irányítószám" minHeight="25" />
+                           <Label text="Város" minHeight="25" />
+                           <Label text="Utca" minHeight="25" />
+                           <Label text="Házszám" minHeight="25" />
+                           <Label text="Korábbi úticél mint" minHeight="25" />
+                           <Label text="Legkésőbbi érkezés ideje" minHeight="25" />
+                           <Label text="" minHeight="25" />
+                           <Label text="Indulás ideje" minHeight="25" />
+                       </children>
+                   </VBox>
+                  <VBox layoutY="50" layoutX="150" fx:id = "infoBox" prefHeight="200.0" prefWidth="200.0">
+                     <children>
+                         <TextField fx:id="zipcode" promptText="Irányítószám" prefHeight="25" />
+                         <TextField fx:id="city" promptText="Város" prefHeight="25" />
+                         <TextField fx:id="street" promptText="Utca" prefHeight="25" />
+                         <TextField fx:id="house" promptText="Házszám" prefHeight="25" />
+                         <TextField fx:id="before" promptText="Korábbi uticél mint" prefHeight="25" />
+                         <TextField fx:id="beforeTime" promptText="legkésőbbi érkezés ideje" prefHeight="25" />
+                         <Button alignment="BASELINE_LEFT" layoutX="10.0" layoutY="10.0" onAction="#addLocation" prefHeight="38.0" prefWidth="200.0" text="Célpont hozzáadása" />
+                         <TextField fx:id="startTime" promptText="Indulás ideje" prefHeight="25" />
+                         <Button alignment="BASELINE_LEFT" layoutX="10.0" layoutY="10.0" onAction="#calculatePath" prefHeight="38.0" prefWidth="300.0" text="Optimális Útvonal kiszámítása" />
+
+                     </children>
+                  </VBox>
+                   <TableView layoutX="400" layoutY="50" fx:id="locationsTable" editable="true" prefHeight="230.0" prefWidth="750.0">
+                       <columns>
+                           <TableColumn fx:id="tableID" text="Azonositó" prefWidth="100" />
+                           <TableColumn fx:id="tableZipcode" text="Irányítószám" prefWidth="100" />
+                           <TableColumn fx:id="tableCity" prefWidth="150" text="Város"  />
+                           <TableColumn fx:id="tableStreet" prefWidth="175" text="Utca" />
+                           <TableColumn fx:id="tableHouse" prefWidth="75" text="Házszám" />
+                           <TableColumn fx:id="tableBefore" prefWidth="75" text="Megelőzve" />
+                           <TableColumn fx:id="tableBeforeTime" prefWidth="75" text="Legkésőbb" />
+                       </columns>
+                   </TableView>
+                   <TableView layoutX="10" layoutY="350" fx:id="pairsTable" editable="true" prefHeight="300.0" prefWidth="550.0">
+                       <columns>
+                           <TableColumn fx:id="tableFrom" prefWidth="200" text="Honnan"  />
+                           <TableColumn fx:id="tableTo" prefWidth="200" text="Hova" />
+                           <TableColumn fx:id="tableDistance" prefWidth="75" text="Távolság" />
+                           <TableColumn fx:id="tableTime" prefWidth="75" text="Idő" />
+                       </columns>
+                   </TableView>
+                   <TableView layoutX="600" layoutY="350" fx:id="pathsTable" prefHeight="300" prefWidth="650">
+                       <columns>
+                           <TableColumn fx:id="tableInstructions" prefWidth="800" text="Utasítások" />
+                       </columns>
+                   </TableView>
+               </children>
+                </Pane>
+            </children>
+        </AnchorPane>
+    </children>
+</AnchorPane>
