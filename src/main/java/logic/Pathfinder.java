@@ -5,12 +5,11 @@ import model.Node;
 import model.Path;
 
 import java.time.LocalTime;
-import java.util.ArrayList;
-import java.util.PriorityQueue;
+import java.util.*;
 
 public class Pathfinder {
 
-    public ArrayList<Location> calculateBestRoute(ArrayList<Path> paths, ArrayList<Location> locations, String startTime){
+    public ArrayList<Location> calculateRoute(ArrayList<Path> paths, ArrayList<Location> locations, String startTime){
         var routes = listPermutations(locations);
         deleteWrongRoutes(routes);
 
@@ -22,51 +21,51 @@ public class Pathfinder {
             return new ArrayList<>();
         }
 
-        int minCostIndex = createNodes(routes, paths);
-
-        return routes.get(minCostIndex);
+        return calculateBestPath(locations, paths);
     }
 
+    private ArrayList<Location> calculateBestPath(ArrayList<Location> locations, ArrayList<Path> paths) {
+        ArrayList<Node> nodes =  new ArrayList<>();
 
-    public Node aStar(Node start, Node target){
-        PriorityQueue<Node> closedList = new PriorityQueue<>();
-        PriorityQueue<Node> openList = new PriorityQueue<>();
-
-        openList.add(start);
-
-        while(!openList.isEmpty()){
-            Node n = openList.peek();
-            if( n == target){
-                return n;
-            }
-            for( Node.Edge edge : n.neighbours){
-                Node m = edge.node;
-                double totalWeight = n.g + edge.weight;
-                if(!openList.contains(m) && !closedList.contains(m)){
-                    m.parent = n;
-                    m.g = totalWeight;
-                    m.f = m.g + m.h;
-                    openList.add(m);
-                }
-                else{
-                    if( totalWeight < m.g){
-                        m.parent = n;
-                        m.g = totalWeight;
-                        m.f = m.g + m.h;
-                        if( closedList.contains(m)){
-                            closedList.remove(m);
-                            openList.add(m);
-                        }
-                    }
-                }
-            }
-            openList.remove(n);
-            closedList.add(n);
+        for( int i = 0; i < locations.size(); i++){
+            Node node = new Node ( locations.get(i));
+            nodes.add(node);
         }
-        return null;
+
+        for (Node node : nodes) {
+            node.neighbours = createNeighbours(node, nodes, paths);
+        }
+
+        Node solution = aStar(nodes.get(0), locations);
+
+        ArrayList<Location> bestPath = new ArrayList<>();
+        bestPath.add(solution.location);
+
+        Node iterator = solution;
+
+        while( iterator.parent != null){
+            iterator = iterator.parent;
+            bestPath.add(iterator.location);
+        }
+
+        Collections.reverse(bestPath);
+
+        return bestPath;
     }
 
-    private double calculateHeuristic(Location from, Location to, ArrayList<Path> paths) {
+    private List<Node.Edge> createNeighbours(Node node, ArrayList<Node> nodes, ArrayList<Path> paths) {
+        ArrayList<Node.Edge> neighbours = new ArrayList<>();
+        for (Node neighbour : nodes) {
+            if (node != neighbour) {
+                double weight = calculateWeight(node.location, neighbour.location, paths);
+                Node.Edge edge = new Node.Edge(weight, neighbour);
+                neighbours.add(edge);
+            }
+        }
+        return neighbours;
+    }
+
+    private double calculateWeight(Location from, Location to, ArrayList<Path> paths) {
         double cost = 0;
         for ( Path path : paths){
             if( from.equals(path.getStart()) && to.equals(path.getEnd())){
@@ -77,35 +76,87 @@ public class Pathfinder {
         return cost;
     }
 
-    private int createNodes(ArrayList<ArrayList<Location>> routes, ArrayList<Path> paths) {
-        int minCostIndex = 0;
-        double minCost = 0;
 
-        for( int i = 0; i < routes.size(); i++){
-            ArrayList<Node> nodes =  new ArrayList<>();
-            Node head = new Node ( routes.get(i).get(0));
-            nodes.add(head);
+    public Node aStar(Node start, ArrayList<Location> locations){
+        PriorityQueue<Node> closedList = new PriorityQueue<>();
+        PriorityQueue<Node> openList = new PriorityQueue<>();
 
-            for( int j = 1; j < routes.get(i).size(); j++){
-                Node node = new Node(routes.get(i).get(j));
-                double cost = calculateHeuristic(routes.get(i).get(j-1), routes.get(i).get(j), paths);
-                Node parent = nodes.get(nodes.size()-1);
-                ArrayList<Node.Edge> parentNeighbours = new ArrayList<>();
-                parentNeighbours.add(new Node.Edge(cost, node));
-                parent.neighbours = parentNeighbours;
-                nodes.add(node);
+        openList.add(start);
+
+        while(!openList.isEmpty()){
+            Node node = openList.peek();
+            if( isSolution(node, locations)){
+                return node;
             }
-            Node solution = aStar(head, nodes.get(nodes.size()-1));
-            if (solution.g < minCost){
-                minCost = solution.g;
-                minCostIndex = i;
+            for( Node.Edge edge : node.neighbours){
+                Node neighbour = edge.node;
+                double totalWeight = node.g + edge.weight;
+                if(!openList.contains(neighbour) && !closedList.contains(neighbour)){
+                    neighbour.parent = node;
+                    neighbour.g = totalWeight;
+                    neighbour.h = calculateHeuristicCost(neighbour, locations );
+                    neighbour.f = neighbour.g + neighbour.h;
+                    openList.add(neighbour);
+                    break;
+                }
+                else{
+                    if( totalWeight < neighbour.g){
+                        neighbour.parent = node;
+                        neighbour.g = totalWeight;
+                        neighbour.h = calculateHeuristicCost(neighbour, locations);
+                        neighbour.f = neighbour.g + neighbour.h;
+                        if( closedList.contains(neighbour)){
+                            closedList.remove(neighbour);
+                            openList.add(neighbour);
+                            break;
+                        }
+                    }
+                }
             }
+            openList.remove(node);
+            closedList.add(node);
         }
-
-        return minCostIndex;
+        return null;
     }
 
-    public static ArrayList<ArrayList<Location>> listPermutations(ArrayList<Location> list) {
+    private boolean isSolution(Node node, ArrayList<Location> locations) {
+        Node iterator = node;
+        int nodes = 1;
+
+        while( iterator.parent != null){
+            iterator = iterator.parent;
+            nodes++;
+        }
+
+        if( nodes == locations.size()){
+            return true;
+        }
+
+        return false;
+    }
+
+    private double calculateHeuristicCost(Node node, ArrayList<Location> locations) {
+        double totalCost = node.g;
+        Node iterator = node;
+        int nodes = 1;
+
+        while( iterator.parent != null){
+            totalCost += iterator.parent.g;
+            iterator = iterator.parent;
+            nodes++;
+        }
+
+        totalCost = totalCost / nodes;
+        int nodesLeft = locations.size() - nodes;
+
+        return totalCost * nodesLeft;
+    }
+
+
+
+    public static ArrayList<ArrayList<Location>> listPermutations(ArrayList<Location> locations) {
+        ArrayList<Location> list = new ArrayList<>(locations);
+
         if (list.size() == 0) {
             ArrayList<ArrayList<Location>> result = new ArrayList<ArrayList<Location>>();
             result.add(new ArrayList<Location>());

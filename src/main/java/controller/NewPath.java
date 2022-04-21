@@ -94,7 +94,7 @@ public class NewPath implements Initializable {
     public void calculatePath(ActionEvent actionEvent) throws IOException, InterruptedException {
         ArrayList<Path> paths = apiHandler.queryPathProperties(locations);
         Pathfinder pathfinder = new Pathfinder();
-        ArrayList<Location> bestRoute = pathfinder.calculateBestRoute(paths, locations, startTime.getText());
+        ArrayList<Location> bestRoute = pathfinder.calculateRoute(paths, locations, startTime.getText());
 
         if(bestRoute.isEmpty()){
             Alert alert = new Alert(Alert.AlertType.ERROR);
