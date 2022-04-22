@@ -1,5 +1,7 @@
 package model;
 
+import java.util.ArrayList;
+
 public class Location {
 
     private int id;
@@ -11,6 +13,7 @@ public class Location {
     private double longitude;
     private String before;
     private String beforeTime;
+    private ArrayList<Location> beforeLocations;
 
     public Location(int id, String city, String street, int zipcode, int house, String before, String beforeTime) {
         this.id = id;
@@ -58,6 +61,14 @@ public class Location {
         return beforeTime;
     }
 
+    public ArrayList<Location> getBeforeLocations() {
+        return beforeLocations;
+    }
+
+    public void setBeforeLocations(ArrayList<Location> beforeLocations) {
+        this.beforeLocations = beforeLocations;
+    }
+
     public void setLattitude(double lattitude) {
         this.lattitude = lattitude;
     }
@@ -71,7 +82,7 @@ public class Location {
         if (this == o) return true;
         if (o == null || getClass() != o.getClass()) return false;
         Location location = (Location) o;
-        return getZipcode() == location.getZipcode() && getHouse() == location.getHouse() && getCity().equals(location.getCity()) && getStreet().equals(location.getStreet());
+        return getId() == location.getId();
     }
 
 }

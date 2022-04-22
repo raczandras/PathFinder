@@ -9,22 +9,36 @@ import java.util.*;
 
 public class Pathfinder {
 
-    public ArrayList<Location> calculateRoute(ArrayList<Path> paths, ArrayList<Location> locations, String startTime){
-        var routes = listPermutations(locations);
-        deleteWrongRoutes(routes);
+    private final ArrayList<Location> locations;
+    private final ArrayList<Path> paths;
+    private final String startTime;
 
-        if(!startTime.isEmpty()){
-            deleteWrongTimes(routes, paths, startTime);
-        }
-
-        if( routes.isEmpty()){
-            return new ArrayList<>();
-        }
-
-        return calculateBestPath(locations, paths);
+    public Pathfinder(ArrayList<Location> locations, ArrayList<Path> paths, String startTime) {
+        this.locations = locations;
+        this.paths = paths;
+        this.startTime = startTime;
     }
 
-    private ArrayList<Location> calculateBestPath(ArrayList<Location> locations, ArrayList<Path> paths) {
+    public ArrayList<Location> calculateRoute(){
+        setBefores();
+
+        return calculateBestPath();
+    }
+
+    private void setBefores() {
+        for (Location location : locations) {
+            ArrayList<Location> beforeLocations = new ArrayList<>();
+            for(int i = 0; i < locations.size(); i++){
+                String locationId = Integer.toString(locations.get(i).getId());
+                if(location.getBefore().contains(locationId)){
+                    beforeLocations.add(locations.get(i));
+                }
+            }
+            location.setBeforeLocations(beforeLocations);
+        }
+    }
+
+    private ArrayList<Location> calculateBestPath() {
         ArrayList<Node> nodes =  new ArrayList<>();
 
         for( int i = 0; i < locations.size(); i++){
@@ -33,10 +47,15 @@ public class Pathfinder {
         }
 
         for (Node node : nodes) {
-            node.neighbours = createNeighbours(node, nodes, paths);
+            node.neighbours = createNeighbours(node, nodes);
         }
 
-        Node solution = aStar(nodes.get(0), locations);
+        Node head = createHeadNode(nodes);
+        Node solution = aStar(head);
+
+        if( solution == null){
+            return new ArrayList<>();
+        }
 
         ArrayList<Location> bestPath = new ArrayList<>();
         bestPath.add(solution.location);
@@ -47,17 +66,30 @@ public class Pathfinder {
             iterator = iterator.parent;
             bestPath.add(iterator.location);
         }
-
+        bestPath.remove(null);
         Collections.reverse(bestPath);
 
         return bestPath;
     }
 
-    private List<Node.Edge> createNeighbours(Node node, ArrayList<Node> nodes, ArrayList<Path> paths) {
+    private Node createHeadNode(ArrayList<Node> nodes) {
+        Node head = new Node(null);
+        ArrayList<Node.Edge> neighbours = new ArrayList<>();
+
+        for (Node node : nodes) {
+            Node.Edge edge = new Node.Edge(0,node);
+            neighbours.add(edge);
+        }
+        head.neighbours = neighbours;
+
+        return head;
+    }
+
+    private List<Node.Edge> createNeighbours(Node node, ArrayList<Node> nodes) {
         ArrayList<Node.Edge> neighbours = new ArrayList<>();
         for (Node neighbour : nodes) {
             if (node != neighbour) {
-                double weight = calculateWeight(node.location, neighbour.location, paths);
+                double weight = calculateWeight(node.location, neighbour.location);
                 Node.Edge edge = new Node.Edge(weight, neighbour);
                 neighbours.add(edge);
             }
@@ -65,7 +97,7 @@ public class Pathfinder {
         return neighbours;
     }
 
-    private double calculateWeight(Location from, Location to, ArrayList<Path> paths) {
+    private double calculateWeight(Location from, Location to) {
         double cost = 0;
         for ( Path path : paths){
             if( from.equals(path.getStart()) && to.equals(path.getEnd())){
@@ -76,8 +108,7 @@ public class Pathfinder {
         return cost;
     }
 
-
-    public Node aStar(Node start, ArrayList<Location> locations){
+    public Node aStar(Node start){
         PriorityQueue<Node> closedList = new PriorityQueue<>();
         PriorityQueue<Node> openList = new PriorityQueue<>();
 
@@ -85,30 +116,32 @@ public class Pathfinder {
 
         while(!openList.isEmpty()){
             Node node = openList.peek();
-            if( isSolution(node, locations)){
+            if( isSolution(node)){
                 return node;
             }
             for( Node.Edge edge : node.neighbours){
                 Node neighbour = edge.node;
-                double totalWeight = node.g + edge.weight;
-                if(!openList.contains(neighbour) && !closedList.contains(neighbour)){
-                    neighbour.parent = node;
-                    neighbour.g = totalWeight;
-                    neighbour.h = calculateHeuristicCost(neighbour, locations );
-                    neighbour.f = neighbour.g + neighbour.h;
-                    openList.add(neighbour);
-                    break;
-                }
-                else{
-                    if( totalWeight < neighbour.g){
+                if( isApplicable(node, neighbour.location) && willArriveInTime(node, neighbour.location)){
+                    double totalWeight = node.g + edge.weight;
+                    if(!openList.contains(neighbour) && !closedList.contains(neighbour)){
                         neighbour.parent = node;
                         neighbour.g = totalWeight;
-                        neighbour.h = calculateHeuristicCost(neighbour, locations);
+                        neighbour.h = calculateHeuristicCost(neighbour);
                         neighbour.f = neighbour.g + neighbour.h;
-                        if( closedList.contains(neighbour)){
-                            closedList.remove(neighbour);
-                            openList.add(neighbour);
-                            break;
+                        openList.add(neighbour);
+                        break;
+                    }
+                    else{
+                        if( totalWeight < neighbour.g){
+                            neighbour.parent = node;
+                            neighbour.g = totalWeight;
+                            neighbour.h = calculateHeuristicCost(neighbour);
+                            neighbour.f = neighbour.g + neighbour.h;
+                            if( closedList.contains(neighbour)){
+                                closedList.remove(neighbour);
+                                openList.add(neighbour);
+                                break;
+                            }
                         }
                     }
                 }
@@ -119,9 +152,86 @@ public class Pathfinder {
         return null;
     }
 
-    private boolean isSolution(Node node, ArrayList<Location> locations) {
+    private boolean willArriveInTime(Node node, Location locationToTest) {
+        if( startTime.isEmpty()){
+            return true;
+        }
+
+        ArrayList<Location> possibleRoute = new ArrayList<>();
         Node iterator = node;
-        int nodes = 1;
+        possibleRoute.add(node.location);
+
+        while( iterator.parent != null){
+            iterator = iterator.parent;
+            possibleRoute.add(iterator.location);
+        }
+        possibleRoute.remove(null);
+        Collections.reverse(possibleRoute);
+        possibleRoute.add(locationToTest);
+
+        for (Location location: locations) {
+            if(!possibleRoute.contains(location)){
+                possibleRoute.add(location);
+                if(!isGoodTime(possibleRoute)){
+                    return false;
+                }
+                possibleRoute.remove(location);
+            }
+        }
+
+        return true;
+    }
+
+    private boolean isGoodTime(ArrayList<Location> possibleRoute) {
+        LocalTime arrivalTime = LocalTime.parse(startTime);
+        for( int i = 0; i < possibleRoute.size()-1; i++){
+            for ( Path path : paths){
+                if( possibleRoute.get(i).equals(path.getStart()) && possibleRoute.get(i+1).equals(path.getEnd())){
+                    arrivalTime = arrivalTime.plusMinutes((long)path.getDuration() / 60);
+                    if(!arriveInTime(arrivalTime, possibleRoute.get(i+1))){
+                        return false;
+                    }
+                }
+            }
+        }
+        return true;
+    }
+
+    private boolean arriveInTime(LocalTime arrivalTime, Location location){
+        if(!location.getBeforeTime().isEmpty()){
+            LocalTime arriveBy = LocalTime.parse(location.getBeforeTime());
+            if(arrivalTime.isAfter(arriveBy)){
+                return false;
+            }
+        }
+        return true;
+    }
+
+    private boolean isApplicable(Node node, Location locationToTest) {
+        ArrayList<Location> existingLocations = new ArrayList<>();
+        String locationID = Integer.toString(locationToTest.getId());
+
+        Node iterator = node;
+        while(iterator.parent != null){
+            existingLocations.add(iterator.location);
+            iterator = iterator.parent;
+        }
+        existingLocations.add(locationToTest);
+
+        for (Location location: locations) {
+            if(!existingLocations.contains(location)){
+                if(location.getBefore().contains(locationID)){
+                    return false;
+                }
+            }
+        }
+
+        return true;
+    }
+
+    private boolean isSolution(Node node) {
+        Node iterator = node;
+        int nodes = 0;
 
         while( iterator.parent != null){
             iterator = iterator.parent;
@@ -135,10 +245,10 @@ public class Pathfinder {
         return false;
     }
 
-    private double calculateHeuristicCost(Node node, ArrayList<Location> locations) {
+    private double calculateHeuristicCost(Node node) {
         double totalCost = node.g;
         Node iterator = node;
-        int nodes = 1;
+        int nodes = 0;
 
         while( iterator.parent != null){
             totalCost += iterator.parent.g;
@@ -153,94 +263,7 @@ public class Pathfinder {
     }
 
 
-
-    public static ArrayList<ArrayList<Location>> listPermutations(ArrayList<Location> locations) {
-        ArrayList<Location> list = new ArrayList<>(locations);
-
-        if (list.size() == 0) {
-            ArrayList<ArrayList<Location>> result = new ArrayList<ArrayList<Location>>();
-            result.add(new ArrayList<Location>());
-            return result;
-        }
-        ArrayList<ArrayList<Location>> returnList = new ArrayList<ArrayList<Location>>();
-        Location firstElement = list.remove(0);
-
-        ArrayList<ArrayList<Location>> recursiveReturn = listPermutations(list);
-        for (ArrayList<Location> li : recursiveReturn) {
-            for (int index = 0; index <= li.size(); index++) {
-                ArrayList<Location> temp = new ArrayList<Location>(li);
-                temp.add(index, firstElement);
-                returnList.add(temp);
-            }
-        }
-        return returnList;
-    }
-
-    private void deleteWrongTimes(ArrayList<ArrayList<Location>> routes, ArrayList<Path> paths, String startTime) {
-        for( int i = 0; i < routes.size(); i++){
-            if(isWrongTime(routes.get(i), paths, startTime)){
-                routes.remove(i);
-                i--;
-            }
-        }
-    }
-
-    private boolean isWrongTime(ArrayList<Location> locations, ArrayList<Path> paths, String startTime) {
-        LocalTime arrivalTime = LocalTime.parse(startTime);
-        for( int i = 0; i < locations.size()-1; i++){
-            for ( Path path : paths){
-                if( locations.get(i).equals(path.getStart()) && locations.get(i+1).equals(path.getEnd())){
-                    if(arriveInTime(arrivalTime, path, locations.get(i+1))){
-                        return true;
-                    }
-                }
-            }
-        }
-        return false;
-    }
-
-    private boolean arriveInTime(LocalTime arrivalTime, Path path, Location location){
-        arrivalTime = arrivalTime.plusMinutes((long)path.getDuration() / 60);
-        if(!location.getBeforeTime().isEmpty()){
-            LocalTime arriveBy = LocalTime.parse(location.getBeforeTime());
-            if(arrivalTime.isAfter(arriveBy)){
-                return true;
-            }
-        }
-        return false;
-    }
-
-    private void deleteWrongRoutes(ArrayList<ArrayList<Location>> allRoutes) {
-        for( int i = 0; i < allRoutes.size(); i++){
-            if(isBadPath(allRoutes.get(i))){
-                allRoutes.remove(i);
-                i--;
-            }
-        }
-    }
-
-    private Boolean isBadPath(ArrayList<Location> locations) {
-        for( int i = 0; i < locations.size(); i++){
-            for(String beforeID : locations.get(i).getBefore().split(",")) {
-                if(!beforeID.isEmpty() && isBefore(locations, i, beforeID)){
-                    return true;
-                }
-            }
-        }
-        return false;
-    }
-
-    private boolean isBefore(ArrayList<Location> locations, int index, String beforeID) {
-        for( int i = 0; i< locations.size(); i++){
-            if( locations.get(i).getId() == Integer.parseInt(beforeID) ){
-                return index > i;
-            }
-        }
-        return false;
-    }
-
-
-    public ArrayList<Path> getBestRoutePairs(ArrayList<Location> bestRoute, ArrayList<Path> paths) {
+    public ArrayList<Path> getBestRoutePairs(ArrayList<Location> bestRoute) {
         ArrayList<Path> bestPaths = new ArrayList<>();
         for( int i = 0; i < bestRoute.size()-1; i++){
             for ( Path path : paths) {

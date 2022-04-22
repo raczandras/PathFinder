@@ -1,6 +1,6 @@
 package api;
-import model.Location;
 
+import model.Location;
 import java.io.IOException;
 import java.net.URI;
 import java.net.URL;
@@ -10,12 +10,8 @@ import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
-import java.util.Map;
-
-import com.google.gson.Gson;
-import com.google.gson.JsonObject;
-import com.google.gson.JsonParser;
 import model.Path;
+import org.json.*;
 
 public class ApiHandler{
 
@@ -51,21 +47,18 @@ public class ApiHandler{
         HttpResponse<byte[]> response = client.send(request, HttpResponse.BodyHandlers.ofByteArray());
         String answer = new String(response.body(), StandardCharsets.UTF_8);
 
-        JsonParser parser = new JsonParser();
-        JsonObject jsonObj = (JsonObject) parser.parse(answer);
-        Map<String, ArrayList<Map<String, ArrayList<Map<String, Map<String,Double>>>>>> responseMap = new Gson().fromJson(jsonObj.toString(),Map.class);
-        Map<String, ArrayList<Map<String, ArrayList<Map<String,ArrayList<Map<String,String>>>>>>> actions = new Gson().fromJson(jsonObj.toString(),Map.class);
+        JSONObject jsonObj = new JSONObject(answer);
 
-        var routes = responseMap.get("routes");
-        var summary = routes.get(0).get("sections").get(0).get("summary");
+        JSONObject summary = jsonObj.getJSONArray("routes").getJSONObject(0).getJSONArray("sections").getJSONObject(0).getJSONObject("summary");
+        JSONArray actions = jsonObj.getJSONArray("routes").getJSONObject(0).getJSONArray("sections").getJSONObject(0).getJSONArray("actions");
 
-        var paths = actions.get("routes").get(0).get("sections").get(0).get("actions");
-        path.setDuration(summary.get("duration"));
-        path.setLength(summary.get("length"));
+        path.setDuration(summary.getDouble("duration"));
+        path.setLength(summary.getDouble("length"));
         path.setProperties();
         ArrayList<String> instructions = new ArrayList<String>();
-        for(int i = 0; i < paths.size(); i++){
-            instructions.add(paths.get(i).get("instruction"));
+
+        for(int i = 0; i < actions.length(); i++){
+            instructions.add(actions.getJSONObject(i).getString("instruction"));
         }
         path.setInstructions(instructions);
     }
@@ -95,14 +88,11 @@ public class ApiHandler{
         HttpResponse<byte[]> response = client.send(request, HttpResponse.BodyHandlers.ofByteArray());
         String answer = new String(response.body(), StandardCharsets.UTF_8);
 
-        JsonParser parser = new JsonParser();
-        JsonObject jsonObj = (JsonObject) parser.parse(answer);
-        Map<String, ArrayList<Map<String, Map<String, Double>>>> responseMap = new Gson().fromJson(jsonObj.toString(),Map.class);
-        var items = responseMap.get("items");
-        var positions = items.get(0).get("position");
+        JSONObject jsonObj = new JSONObject(answer);
+        JSONObject positions = jsonObj.getJSONArray("items").getJSONObject(0).getJSONObject("position");
 
-        location.setLongitude(positions.get("lng"));
-        location.setLattitude(positions.get("lat"));
+        location.setLongitude(positions.getDouble("lng"));
+        location.setLattitude(positions.getDouble("lat"));
     }
 
     public ArrayList<Path> createPairs(ArrayList<Location> locations) throws IOException {
